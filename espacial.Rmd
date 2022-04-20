@@ -24,6 +24,7 @@ editor_options:
 ```{=tex}
 \input{titlepage}
 \newpage
+\thispagestyle{empty}
 \tableofcontents
 \newpage
 ```
@@ -32,6 +33,22 @@ editor_options:
 \pagestyle{myheadings}
 \setcounter{page}{3}
 ```
+
+\section{Capitulo I: Computación cuántica, una evolución inminente}
+
+Alcides Montoya Cañola es docente de la Universidad Nacional de Colombia 17
+años, presenta una fotografía tomada en el 2019 de un computador cuántico
+donde nos enseña el núcleo y sus partes el cual esta funcionando y es monitoreado por Google, a partir de estas partes se hace una transformación para que sea un compilador y programar en un lenguaje conocido para nosotros. En 2018 Google hace publico un trabajo donde se menciona la supremacía cuántica, donde se muestra un algoritmo cuántico donde dice que para un computador clásico se puede demorar cientos de años y este lo resolvió en un par de días. Una de las desventajas del computador cuántico es que tiene que estar en una temperatura de 0 °C absoluto lo cual no es posible en cualquier lado, tienen que estár en laboratorios para monitorear las condiciones de este, D-Wave está apostando por que este se pueda trabajar en temperatura ambiente. 
+
+Los algoritmos cuánticos:  Short, HHL, SDP, Trotter-based algoritmos con velocidad potencial exponencial. QAE, VQE, DDQCL, QAQA, QEPT y Grover search con una velocidad potencial polinomial.
+
+Algunos casos de uso son la química, algoritmos, comunicación y de interés para los estadísticos o científicos de datos como el machine learning y simulación, lo que haría procesos mucho más rápidos.  
+Un posible riesgo de la computación cuántica es que a manos de hackers expertos puede dar a vulnerar claves, para este problema se está trabajando en criptografía post cuántica.
+
+Dada la naturaleza del trabajo al se enfrenta un estadístico, científico de datos o afín, el tema de computación cuántica resulta de particular interés porque esta se presenta como una evolución al sistema de computación clásica al cual ya se está acostumbrado. El sistema clásico ha logrado que la humanidad avance gracias a la variedad de aplicaciones que ha tenido en múltiples áreas, sin embargo, esta también se puede ver limitada en problemas más complejos, por ejemplo, cuando se quiere ajustar algún modelo de machine learning y este tarda horas o incluso días en realizar el ajuste, por lo que nace de manera natural la pregunta de cómo solucionar esta problemática. La computación cuántica expande el margen de posibilidades puesto que además de solucionar problemas de computación clásica de manera más efectiva, también podría dar entrada a la solución de otros tipos de problemas aún más complejos. 
+
+Aunque la potencia de la computación cuántica se ve en una escala superior, esta se encuentra en pleno desarrollo y la existencia de algunas desventajas notables como, por ejemplo, la temperatura del equipo implica que todavía deban pasar varios años hasta que este pueda ser un estándar mundial como ya lo es la computación clásica, no obstante, dado que el estadístico necesita constantemente el poder de la computación en el día a día, resulta muy importante conocer como avanza esta nueva tecnología que, eventualmente, podría ser la evolución del enfoque que ya se conoce logrando cosas que antes solo eran producto de la imaginación.
+
 
 \section{Capítulo II: la estadística espacial llegó para quedarse}
 
