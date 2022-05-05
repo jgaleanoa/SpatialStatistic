@@ -1,0 +1,107 @@
+---
+title: "Presentación datos geoestadísticos grupo 1"
+author: 
+  - "Juan José Galeano Arenas"
+  - "Simón Pedro Galeano Muñoz"
+  - "German Alonso Patiño Hurtado"
+date: '2022-05-03'
+output: 
+  html_document:
+    toc: true
+    theme: paper
+    toc_float: true
+---
+
+<style>
+.html-widget {
+    margin: auto;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, fig.pos = "H", fig.align = "center")
+library(knitr)
+library(tidyverse)
+library(kableExtra)
+library(leaflet)
+```
+
+```{r datos}
+datos <- read.csv("POWER_Regional_Daily_20210101_20210331_037d3462N_042d5633N_090d7380W_087d3550W_LST.csv")
+# names(datos)
+# table(datos$YEAR)
+# table(datos$MO)
+# table(datos$DY)
+# table(datos$LAT, datos$LON)
+
+# datos_def <- datos %>% 
+#   group_by(LAT, LON) %>% 
+#   summarise(Irradiacion = mean(ALLSKY_SFC_LW_DWN),
+#             Temperatura = mean(T2MWET)) %>% 
+#   as.data.frame()
+# saveRDS(datos_def, "datos.Rds")
+# write.csv(datos_def, "datos_def.csv")
+datos_def <- readRDS("datos.Rds")
+```
+
+# Contextualización
+
+El invierno es feroz, más aún cuando de agricultura se trata. Indiana, estado 
+precioso cuyo mayor costo de <a href="https://www.nass.usda.gov/Quick_Stats/Ag_Overview/stateOverview.php?state=INDIANA">producción agrícola</a> se debe al cultivo de maíz.
+
+Motivados por este hecho, se tomó la decisión de investigar cuáles son
+aquellas zonas en las que se presenta una mayor temperatura y una mayor
+irradiación por parte de la radiación que emite la luz solar, ya que
+el maíz es un vegetal que aprovecha mucho ambas características para
+su <a href="https://www.pioneer.com/us/agronomy/soil_temp_corn_emergence.html#:~:text=Key%20Points,corn%20emergence%20and%20seedling%20health.">crecimiento y desarrollo</a>.
+
+# Temperatura e irradiación solar 
+
+Se miden las variables irradiación solar y temperatura en ubicaciones especificas del estado de indiana en estados unidos múltiples veces (90 en cada punto); dichas mediciones se realizan en ubicaciones igualmente espaciadas. 
+
+Teniendo en cuenta que se tienen múltiples mediciones de las variables surge la necesidad de resumir esta información con alguna métrica puesto que en la teoría vista se considera una única realización del proceso estocástico, a continuación se muestran los histogramas de las variables consideradas.
+
+```{r histogramas}
+p1 <- ggplot(datos, aes(T2MWET)) +
+  geom_histogram(bins =  nclass.Sturges(datos$T2MWET),
+                 col = "black", fill = "cyan") +
+  labs(x = "Temperatura", y = "Frecuencia",
+       title = "Distribución de temperatura") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+p2 <- ggplot(datos, aes(ALLSKY_SFC_LW_DWN)) +
+  geom_histogram(bins =  nclass.Sturges(datos$ALLSKY_SFC_LW_DWN),
+                 col = "black", fill = "cyan") +
+  labs(x = "Irradiación", y = "Frecuencia",
+       title = "Distribución de irradiación solar") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+ggpubr::ggarrange(p1, p2, nrow = 1)
+```   
+Dada la aparente simetría en los histogramas, simplificar las mediciones de dichas variables con sus respectivos promedios no es una idea descabellada.
+
+# Base de datos definitiva
+
+La base de datos definitiva se construye agrupando los datos por la longitud y latitud debido a que, como se mencionó previamente, se tienen múltiples mediciones de las variables en cada ubicación los cuales corresponden a los primeros tres meses del año, una vez agrupadas las ubicaciones, se promedian todos los valores medidos en dichas ubicaciones de las variables de interés, esto gracias a las funciones `group_by()` y `summarise()` de la librería `dplyr`. La base de datos resultante tiene la siguiente estructura
+
+```{r datos-def}
+kbl(head(datos_def), 
+    col.names = c("Latitud", "Longitud",
+                  "Irradiación", "Temperatura")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+Para finalizar se muestra el mapa de las ubicaciones de muestreo.
+
+```{r}
+mapa_base <- leaflet() %>%
+  addTiles()
+
+mapa_base %>% 
+  addCircleMarkers(lat=~LAT, lng =~LON, 
+                   color = "red", radius = 0.5, data = datos)
+```
+
+
