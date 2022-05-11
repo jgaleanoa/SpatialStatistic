@@ -21,4 +21,65 @@ library(knitr)
 library(geoR)
 library(readxl)
 library(vegan)
+library(raster)
+library(spatstat)
 ```
+
+# Contextualización
+
+# Datos
+
+```{r}
+# Bases de datos necesarias
+dat <- read.csv("https://raw.githubusercontent.com/HughSt/HughSt.github.io/master/course_materials/week1/Lab_files/Data/mal_data_eth_2009_no_dups.csv",header=T)
+ethopia_adm <- raster::getData("GADM", country="ETH", level=1)
+
+```
+
+# Interpolación IDW
+
+```{r}
+oromia <- ethopia_adm[ethopia_adm$NAME_1=="Oromia",]
+obs_window <- owin(oromia@bbox[1,], oromia@bbox[2,])
+
+ppp_malaria<-ppp(dat$longitude, dat$latitude,
+                 marks = dat$pf_pr, window = obs_window)
+
+idw_malaria <- idw(ppp_malaria, power = 0.05, at = "pixels")
+
+plot(idw_malaria,
+     col=heat.colors(20), 
+     main="Interpolated spatial variation in risk of malaria based on IDW method \n (Power = 0.05)") 
+```
+
+## MSE
+
+# Cross - Validation
+
+```{r}
+par(mfrow=c(2,2))
+plot(idw(ppp_malaria, power=0.001, at="pixels"),col=heat.colors(20), main="power = 0.001") 
+plot(idw(ppp_malaria, power=0.01, at="pixels"),col=heat.colors(20), main="power = 0.01")
+plot(idw(ppp_malaria, power=0.1, at="pixels"),col=heat.colors(20), main="power = 0.1")
+plot(idw(ppp_malaria, power=10, at="pixels"),col=heat.colors(20), main="power = 10") 
+```
+
+## Buscando la potencia óptima
+
+```{r}
+powers <- seq(0.001, 10, 0.01)
+mse_result <- NULL
+for(power in powers){
+  CV_idw <- idw(ppp_malaria, power=power, at="points")
+  mse_result <- c(mse_result,
+                  Metrics::mse(ppp_malaria$marks,CV_idw))
+}
+optimal_power <- powers[which.min(mse_result)]
+optimal_power
+
+plot(mse_result)
+```
+
+
+
+
