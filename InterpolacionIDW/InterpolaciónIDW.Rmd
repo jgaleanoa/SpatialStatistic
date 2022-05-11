@@ -1,0 +1,24 @@
+---
+title: "Análisis de autocorrelación espacial"
+author: 
+  -"Juan José Galeano Arenas"
+  -"Simón Pedro Galeano Muñoz"
+  -"Germán Alonso Patiño Hurtado"
+date: 10/05/2022
+output: 
+  html_document:
+    toc: true
+    theme: paper
+    code_folding: show
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, fig.align = "center",
+                      message = F, results = F)
+library(kableExtra)
+library(knitr)
+library(geoR)
+library(readxl)
+library(vegan)
+```
