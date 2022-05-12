@@ -30,7 +30,7 @@ library(leaflet)
 
 ```{r echo=F}
 # Bases de datos necesarias
-datos_cools <- readRDS("datos.Rds")
+datos_cools <- readRDS("datos_mediana.Rds")
 ```
 
 # Datos
@@ -69,7 +69,7 @@ mapa_base %>%
 En esta sección se verifica el supuesto de autocorrelación espacial, el cual es fundamental al momento de realizar análisis posteriores. Se hace la aclaración que para este caso particular se trabajará con la variable temperatura.
 
 ```{r echo=F}
-datos_geo<- as.geodata(datos_cools,coords.col = 2:1, data.col = 4)
+datos_geo<- as.geodata(datos_cools,coords.col = 2:1, data.col = 3)
 plot(datos_geo)
 ```
 
@@ -103,14 +103,15 @@ Teniendo en cuenta la existencia de autocorrelación espacial, es posible usar e
 
 ```{r}
 summary(distancia)
-variograma=variog(datos_geo,option = "bin",uvec = seq(0,2.9,0.3),messages=F)
+variograma=variog(datos_geo,option = "bin",
+                  uvec = seq(0,2.9,0.3),messages=F)
 
 ## bandas de confianza, si hay o no autocorrelacion 
 variograma.emv=variog.mc.env(datos_geo,obj=variograma)
 ```
 
 ```{r,results="hide"}
-ini.vals <- expand.grid(seq(2,5,l=10), seq(2,2.9,l=10))
+ini.vals <- expand.grid(seq(20,60,l=10), seq(2,2.9,l=10))
 model_mco_exp=variofit(variograma, ini=ini.vals, cov.model="exponential",
                        wei="npair", min="optim")
 model_mco_gaus=variofit(variograma, ini=ini.vals, cov.model="gaussian",
@@ -129,8 +130,8 @@ lines(model_mco_spe,col="purple")
 
 
 ```{r}
-#valida = xvalid(datos_geo, model = model_mco_gaus)
-#?xvalid
+valida = xvalid(datos_geo, model = model_mco_gaus)
+mean(valida$error^2)
 ```
 
 # Interpolación IDW
@@ -147,7 +148,7 @@ Una vez definida la ventana de observación se debe crear un objeto de la clase 
 
 ```{r}
 ppp_temp <- ppp(datos_cools$LON, datos_cools$LAT,
-                 marks = datos_cools$Temperatura, window = obs_window)
+                 marks = datos_cools$Irradiacion, window = obs_window)
 
 idw_temp <- idw(ppp_temp, power = 0.05, at = "pixels")
 
@@ -180,23 +181,30 @@ plot(idw(ppp_temp, power = 10, at = "pixels"),
 El MSE del ajuste puede obtenerse de la siguiente manera
 
 ```{r}
+?idw
+library(spm)
 idw_predicts <- idw(ppp_temp, power = 0.05, at = "points")
 Metrics::mse(ppp_temp$marks, idw_predicts)
+lol <- idwcv(datos_cools[,1:2],datos_cools[,4], cv.fold =  2,idp = 1)
 ```
 ## Buscando la potencia óptima con Grid - Search
 
 Se calcula el MSE con una gran variedad de valores de p
 
 ```{r}
-powers <- seq(0.001, 10, 0.01)
-mse_result <- NULL
+powers <- seq(0.1, 6, 0.1)
+mse_result <- numeric(length(powers))
+cnt <- 1
 for(power in powers){
   CV_idw <- idw(ppp_temp, power=power, at="points")
-  mse_result <- c(mse_result,
-                  Metrics::mse(ppp_temp$marks, CV_idw))
+  mse_result[cnt] <- mean((datos_cools$Irradiacion- CV_idw)^2)
+  cnt <- cnt + 1
 }
 
-plot(powers, mse_result, ylab = "MSE", xlab = "Potencia (p)")
+plot(powers, mse_result, ylab = "MSE", xlab = "Potencia (p)",type="l")
+mse_result[1070:1100]
+min(mse_result)
+powers[which.min(mse_result)]
 ```
 
 Se puede apreciar que a partir de $p = 2$ el MSE no tiene un gran cambio por lo que prefiere dejarse dicho valor y evitar posible sobreajuste.
@@ -204,7 +212,13 @@ Se puede apreciar que a partir de $p = 2$ el MSE no tiene un gran cambio por lo 
 ## Interpolación IDW con p óptimo
 
 ```{r}
-idw_temp_optimo <- idw(ppp_temp, power = 2, at = "pixels")
+par(mfrow=c(1,2))
+idw_temp_optimo <- idw(ppp_temp, power = 6, at = "pixels")
+
+plot(idw_temp_optimo,
+     col = heat.colors(20), 
+     main = "Interpolación IDW con p óptimo") 
+idw_temp_optimo <- idw(ppp_temp, power = 3, at = "pixels")
 
 plot(idw_temp_optimo,
      col = heat.colors(20), 
