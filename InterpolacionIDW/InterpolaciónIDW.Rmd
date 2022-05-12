@@ -1,10 +1,10 @@
 ---
 title: "Análisis de autocorrelación espacial"
 author: 
-  -"Juan José Galeano Arenas"
-  -"Simón Pedro Galeano Muñoz"
-  -"Germán Alonso Patiño Hurtado"
-date: 10/05/2022
+  - "Juan José Galeano Arenas"
+  - "Simón Pedro Galeano Muñoz"
+  - "Germán Alonso Patiño Hurtado"
+date: 12/05/2022
 output: 
   html_document:
     toc: true
@@ -53,7 +53,7 @@ Teniendo en cuenta que se tienen múltiples mediciones de las variables surge la
 
 # Base de datos definitiva
 
-La base de datos definitiva se construye agrupando los datos por la longitud y latitud debido a que, como se mencionó previamente, se tienen múltiples mediciones de las variables en cada ubicación los cuales corresponden a los primeros tres meses del año, una vez agrupadas las ubicaciones, se promedian todos los valores medidos en dichas ubicaciones de las variables de interés, esto gracias a las funciones `group_by()` y `summarise()` de la librería `dplyr`. La base de datos resultante tiene la siguiente estructura
+La base de datos definitiva se construye agrupando los datos por la longitud y latitud debido a que, como se mencionó previamente, se tienen múltiples mediciones de las variables en cada ubicación los cuales corresponden a los primeros tres meses del año, una vez agrupadas las ubicaciones, se promedian todos los valores medidos en dichas ubicaciones de las variables de interés, esto gracias a las funciones `group_by()` y `summarise()` de la librería `dplyr`.
 
 ```{r}
 mapa_base <- leaflet() %>%
@@ -64,20 +64,43 @@ mapa_base %>%
                    color = "red", radius = 0.5, data = datos_cools)
 ```
 
-
-
 ## Análisis descriptivo y prueba de autocorrelación espacial
 
-```{r}
+En esta sección se verifica el supuesto de autocorrelación espacial, el cual es fundamental al momento de realizar análisis posteriores. Se hace la aclaración que para este caso particular se trabajará con la variable temperatura.
+
+```{r echo=F}
 datos_geo<- as.geodata(datos_cools,coords.col = 2:1, data.col = 4)
 plot(datos_geo)
 ```
 
+* En la figura superior izquierda se aprecian las ubicaciones muestreadas coloreadas en función del cuartil al que pertenecen; se puede notar que las ubicaciones cercanas entre sí están coloreadas con el mismo color sugiriendo esto que dichas ubicaciones tienen temperaturas similares y por lo tanto es probable que exista autocorrelación espacial.
+* Para la figura superior derecha se aprecia una clara asociación lineal entre la temperatura y la latitud, sugiriendo la existencia de autocorrelación.
+* En el gráfico inferior izquierdo no se aprecia algún tipo de asociación evidente.
+* El histograma en la gráfica inferior derecha no entrega mucha información debibdo a que este es algo plano.
+
+### Mantel
+
+Para el test de mantel, se tienen ñas siguientes hipótesis
+
+$$
+\begin{cases}
+H_0: \text{No hay autocorrelación espacial en la variable temperatura} \\
+H_1: \text{Existe autocorrelación espacial en la variable temperatura}
+\end{cases}
+$$
+
 ```{r}
-distancia <- dist(cbind(datos_cools$LON,datos_cools$LAT),diag=TRUE,upper=TRUE)
-dist.datos <- dist(datos_cools$Temperatura, diag=TRUE, upper=TRUE)^2
+distancia <- dist(cbind(datos_cools$LON,datos_cools$LAT),
+                  diag=TRUE,upper=TRUE)
+dist.datos <- dist(datos_cools$Temperatura, 
+                   diag=TRUE, upper=TRUE)^2
 mantel(distancia, dist.datos) 
 ```
+
+Como el valor - p de la prueba es menor a 0.001, se rechaza la hipótesis de independencia y se concluye que la variable en cuestión tiene autocorrelación espacial.
+
+Teniendo en cuenta la existencia de autocorrelación espacial, es posible usar el método Krigging para realizar predicciones de temperaturas.
+
 ```{r}
 summary(distancia)
 variograma=variog(datos_geo,option = "bin",uvec = seq(0,2.9,0.3),messages=F)
@@ -90,8 +113,11 @@ variograma.emv=variog.mc.env(datos_geo,obj=variograma)
 ini.vals <- expand.grid(seq(2,5,l=10), seq(2,2.9,l=10))
 model_mco_exp=variofit(variograma, ini=ini.vals, cov.model="exponential",
                        wei="npair", min="optim")
-model_mco_gaus=variofit(variograma, ini=ini.vals, cov.model="gaussian", wei="npair", min="optim",nugget = 0)
-model_mco_spe=variofit(variograma, ini=ini.vals, cov.model="spheric",fix.nug=TRUE, wei="npair", min="optim")
+model_mco_gaus=variofit(variograma, ini=ini.vals, cov.model="gaussian",
+                        wei="npair", min="optim",nugget = 0)
+model_mco_spe=variofit(variograma, ini=ini.vals,
+                       cov.model="spheric",fix.nug=TRUE,
+                       wei="npair", min="optim")
 ```
 
 ```{r}
@@ -103,12 +129,13 @@ lines(model_mco_spe,col="purple")
 
 
 ```{r}
-#valida = xvalid(datos_geo,model = model_mco_gaus)
+#valida = xvalid(datos_geo, model = model_mco_gaus)
 #?xvalid
 ```
 
+# Interpolación IDW
 
-
+Para realizar interpolación idw en R es importante definir una ventana de observación.
 
 ```{r}
 x_obs <- c(min(datos_cools$LON), max(datos_cools$LON))
@@ -116,8 +143,7 @@ y_obs <- c(min(datos_cools$LAT), max(datos_cools$LAT))
 obs_window <- owin(x_obs, y_obs)
 ```
 
-
-# Interpolación IDW
+Una vez definida la ventana de observación se debe crear un objeto de la clase **ppp** puesto que la función `idw()` del paquete `spatstat.core` funciona con objetos de dicha clase.
 
 ```{r}
 ppp_temp <- ppp(datos_cools$LON, datos_cools$LAT,
@@ -130,26 +156,36 @@ plot(idw_temp,
      main = "Interpolación IDW para la temperatura promedio") 
 ```
 
-## MSE
+# ¿Cómo escoger el valor de p?
 
-# Cross - Validation
+A continuación se muestran diferentes interpolaciones para algunos valores de p
 
 ```{r}
 par(mfrow=c(2,2))
-plot(idw(ppp_temp, power=0.001, at="pixels"),
-     col=heat.colors(20), main="power = 0.001") 
+plot(idw(ppp_temp, power = 0.001, at = "pixels"),
+     col=heat.colors(20), main = "p = 0.001") 
 
-plot(idw(ppp_temp, power=0.01, at="pixels"),
-     col=heat.colors(20), main="power = 0.01")
+plot(idw(ppp_temp, power = 0.01, at = "pixels"),
+     col=heat.colors(20), main = "p = 0.01")
 
-plot(idw(ppp_temp, power=0.1, at="pixels"),
-     col=heat.colors(20), main="power = 0.1")
+plot(idw(ppp_temp, power = 0.1, at = "pixels"),
+     col=heat.colors(20), main = "p = 0.1")
 
-plot(idw(ppp_temp, power=10, at="pixels"),
-     col=heat.colors(20), main="power = 10") 
+plot(idw(ppp_temp, power = 10, at = "pixels"),
+     col=heat.colors(20), main = "p = 10") 
 ```
 
-## Buscando la potencia óptima
+## MSE
+
+El MSE del ajuste puede obtenerse de la siguiente manera
+
+```{r}
+idw_predicts <- idw(ppp_temp, power = 0.05, at = "points")
+Metrics::mse(ppp_temp$marks, idw_predicts)
+```
+## Buscando la potencia óptima con Grid - Search
+
+Se calcula el MSE con una gran variedad de valores de p
 
 ```{r}
 powers <- seq(0.001, 10, 0.01)
@@ -159,20 +195,20 @@ for(power in powers){
   mse_result <- c(mse_result,
                   Metrics::mse(ppp_temp$marks, CV_idw))
 }
-optimal_power <- powers[which.min(mse_result)]
-optimal_power
 
-plot(powers, mse_result)
-powers[which.min(mse_result)]
+plot(powers, mse_result, ylab = "MSE", xlab = "Potencia (p)")
 ```
 
+Se puede apreciar que a partir de $p = 2$ el MSE no tiene un gran cambio por lo que prefiere dejarse dicho valor y evitar posible sobreajuste.
+
+## Interpolación IDW con p óptimo
+
 ```{r}
-idw_temp_optimo <- idw(ppp_temp, power = 1.411, at = "pixels")
+idw_temp_optimo <- idw(ppp_temp, power = 2, at = "pixels")
 
 plot(idw_temp_optimo,
      col = heat.colors(20), 
-     main = "Interpolated spatial variation in risk of malaria based on IDW method \n (Power = 0.05)") 
-
+     main = "Interpolación IDW con p óptimo") 
 ```
 
 
