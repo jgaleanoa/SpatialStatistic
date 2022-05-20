@@ -34,13 +34,13 @@ datos <- read.csv("POWER_Regional_Daily_20210101_20210331_037d3462N_042d5633N_09
 # table(datos$DY)
 # table(datos$LAT, datos$LON)
 
-# datos_def <- datos %>% 
-#   group_by(LAT, LON) %>% 
-#   summarise(Irradiacion = mean(ALLSKY_SFC_LW_DWN),
-#             Temperatura = mean(T2MWET)) %>% 
-#   as.data.frame()
-# saveRDS(datos_def, "datos.Rds")
-# write.csv(datos_def, "datos_def.csv")
+datos_def <- datos %>%
+  group_by(LAT, LON) %>%
+  summarise(Irradiacion = median(ALLSKY_SFC_LW_DWN),
+            Temperatura = median(T2MWET)) %>%
+  as.data.frame()
+saveRDS(datos_def, "datos.Rds")
+write.csv(datos_def, "datos_def.csv")
 datos_def <- readRDS("datos.Rds")
 ```
 
