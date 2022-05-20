@@ -1,0 +1,172 @@
+---
+title: "¿Dónde es mejor sembrar maíz según la temperatura en indiana?"
+author: 
+  - "Juan José Galeano Arenas"
+  - "Simón Pedro Galeano Muñoz"
+  - "Germán Alonso Patiño Hurtado"
+date: 24/05/2022
+output: 
+  html_document:
+    toc: true
+    theme: paper
+    code_folding: show
+    toc_float: true
+---
+
+<style>
+.html-widget {
+    margin: auto;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, fig.pos = "H", fig.align = "center")
+library(knitr)
+library(tidyverse)
+library(kableExtra)
+library(leaflet)
+library(ade4)
+library(vegan)
+library(rgdal)
+```
+
+```{r datos}
+datos <- read.csv("datos_crudos.csv")
+
+datos_def <- readRDS("datos.Rds")
+```
+
+# Contextualización
+
+El invierno es feroz, más aún cuando de agricultura se trata. Indiana, estado 
+precioso cuyo mayor costo de <a href="https://www.nass.usda.gov/Quick_Stats/Ag_Overview/stateOverview.php?state=INDIANA">producción agrícola</a> se debe al cultivo de maíz.
+
+Motivados por este hecho, se tomó la decisión de investigar cuáles son
+aquellas zonas en las que se presenta una mayor temperatura y una mayor
+irradiación por parte de la radiación que emite la luz solar, ya que
+el maíz es un vegetal que aprovecha mucho ambas características para
+su <a href="https://www.pioneer.com/us/agronomy/soil_temp_corn_emergence.html#:~:text=Key%20Points,corn%20emergence%20and%20seedling%20health.">crecimiento y desarrollo</a>.
+
+# Temperatura e irradiación solar 
+
+Se miden las variables irradiación solar y temperatura en ubicaciones especificas del estado de indiana en estados unidos múltiples veces (90 en cada punto); dichas mediciones se realizan en ubicaciones igualmente espaciadas. 
+
+Teniendo en cuenta que se tienen múltiples mediciones de las variables surge la necesidad de resumir esta información con alguna métrica puesto que en la teoría vista se considera una única realización del proceso estocástico, a continuación se muestran los histogramas de las variables consideradas.
+
+```{r histogramas}
+p1 <- ggplot(datos, aes(T2MWET)) +
+  geom_histogram(bins =  nclass.Sturges(datos$T2MWET),
+                 col = "black", fill = "cyan") +
+  labs(x = "Temperatura", y = "Frecuencia",
+       title = "Distribución de temperatura") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+p2 <- ggplot(datos, aes(ALLSKY_SFC_LW_DWN)) +
+  geom_histogram(bins =  nclass.Sturges(datos$ALLSKY_SFC_LW_DWN),
+                 col = "black", fill = "cyan") +
+  labs(x = "Irradiación", y = "Frecuencia",
+       title = "Distribución de irradiación solar") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+ggpubr::ggarrange(p1, p2, nrow = 1)
+```   
+Dada la aparente simetría en los histogramas, simplificar las mediciones de dichas variables con sus respectivos promedios no es una idea descabellada.
+
+# Base de datos definitiva
+
+La base de datos definitiva se construye agrupando los datos por la longitud y latitud debido a que, como se mencionó previamente, se tienen múltiples mediciones de las variables en cada ubicación los cuales corresponden a los primeros tres meses del año, una vez agrupadas las ubicaciones, se promedian todos los valores medidos en dichas ubicaciones de las variables de interés, esto gracias a las funciones `group_by()` y `summarise()` de la librería `dplyr`. La base de datos resultante tiene la siguiente estructura
+
+```{r datos-def}
+kable(datos_def[1:5,], 
+    col.names = c("Latitud", "Longitud",
+                  "Irradiación media", "Irradiación mediana",
+                  "Temperatura media", "Temperatura mediana")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+Para finalizar se muestra el mapa de las ubicaciones de muestreo.
+
+```{r}
+mapa_base <- leaflet() %>%
+  addTiles()
+mapa_base %>% 
+  addCircleMarkers(lat=~LAT, lng =~LON, 
+                   color = "red", radius = 0.5, data = datos)
+```
+
+
+```{r}
+temp <- project(as.matrix(datos_def[, 2:1]), "+proj=utm +zone=16 ellps=WGS84")
+colnames(temp) <- c("x", "y")
+datos_def <- cbind(datos_def, temp)
+geodist <- dist(datos_def[,7:8], diag=TRUE, upper=TRUE)
+
+# Matriz de distancias entre las observacioens registradas 
+# en los lugares de muestreo de temperatura
+dist.irra <- dist(datos_def[,3], diag=TRUE, upper=TRUE)^2
+dist.temp <- dist(datos_def[,5], diag=TRUE, upper=TRUE)^2
+dist.irra.median <- dist(datos_def[,4], diag=TRUE, upper=TRUE)^2
+dist.temp.median <- dist(datos_def[,6], diag=TRUE, upper=TRUE)^2
+df <- data.frame(Disimilitud0=dist.temp[lower.tri(dist.temp)],
+                 Disimilitud1=dist.irra[lower.tri(dist.irra)],
+                 Disimilitud2=dist.temp.median[lower.tri(dist.temp.median)],
+                 Disimilitud3=dist.irra.median[lower.tri(dist.irra.median)],
+                 Distancia=geodist[lower.tri(geodist)])
+
+```
+
+# Chequeo de autocorrelación espacial
+
+A continuación se chequea rapidamente la autocorrelación espacial pues si esta no existiera cualquier tipo de análisis posterior carecería de sentido
+
+## Argumento gráfico
+
+```{r, warning=FALSE, message=FALSE}
+p1 <- ggplot(df, aes(x=Distancia, y=Disimilitud0)) +
+  geom_point() + 
+  theme_test(base_size = 14, base_family = "Times New Roman") + 
+  labs(title  = "Temperatura", x = "Distancia geográfica", y = "Disimilitud") + 
+  theme(axis.title = element_text(face="bold"), 
+        axis.text = element_text(colour="black")) +
+  geom_smooth(method = lm)
+
+p2 <- ggplot(df, aes(x=Distancia, y=Disimilitud1)) + geom_point() + 
+  theme_test(base_size = 14, base_family = "Times New Roman") + 
+  labs(title = "Irradiación solar", x = "Distancia geográfica", y = "Disimilitud") +
+  theme(axis.title = element_text(face = "bold"), 
+        axis.text = element_text(colour = "black")) + 
+  
+  geom_smooth(method = lm)
+
+ggpubr::ggarrange(p1, p2, ncol = 2)
+
+```
+
+En ambos casos se puede observar una tendencia de asosiación entre la distancia geografica y las medidas de disimilitud lo cual sugiere la existencia de autocorrelación espacial para las variables temperatura e irradiación solar 
+
+## Pruebas de mantel para autocorrelación espacial 
+
+**Temperatura**
+
+```{r}
+mantel(geodist, dist.temp)
+```
+
+**Irradiación solar**
+
+```{r}
+mantel(geodist, dist.irra)
+```
+En ambos casos el valor p de la prueba es muy pequeño (menor a 0.001) con lo que a cualquier nivel de significancia usual se rechaza la hipotesis nula de independencia y se concluye que las variables tienen autocorrelación espacial.
+
+<!-- juanjo -->
+# Interpolación espacial
+
+## Kriging 
+
+## Interpolación IDW
+
+<!-- Simon -->
+# Resultados ubicados geográficamente
+
+
