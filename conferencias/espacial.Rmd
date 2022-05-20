@@ -1,0 +1,44 @@
+---
+header-includes:
+- \usepackage{longtable}
+- \usepackage[utf8]{inputenc}
+- \usepackage[spanish]{babel}\decimalpoint
+- \setlength{\parindent}{1.25cm}
+- \usepackage{amsmath}
+- \usepackage{xcolor}
+- \usepackage{cancel}
+- \usepackage{array}
+- \usepackage{float}
+- \usepackage{multirow}
+output:
+  pdf_document: 
+    number_sections: no
+fontsize: 12pt
+papersize: letter
+geometry: margin = 1in
+language: "es"
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+```{=tex}
+\input{titlepage}
+\newpage
+\tableofcontents
+\newpage
+```
+
+```{=tex}
+\pagestyle{myheadings}
+\setcounter{page}{3}
+```
+
+\section{Capítulo II: la estadística espacial llegó para quedarse}
+
+La estadística espacial no es solo la inclusión de un contexto del espacio y del tiempo, es una propuesta para detectar lo no antes visto y potenciar el análisis a través de lo ya existente.
+
+Desde siempre la estadística ha sido la mejor amiga de cualquier ciencia o área en general, pues es el medio traductor entre la manifestación de la realidad a través de registros que resultan de interés y el verdadero significado en lo oculto de dicha manifestación, sin embargo esta tarea de traducir ha requerido de un esfuerzo colectivo para desarrollar metodologías que permitan entablar una conversación directa con los datos para extraer de ellos información que permita tomar decisiones, llegar a conclusiones, predecir, plantear nuevas hipótesis, entre otras. Para esto, pruebas de hipótesis, modelos aditivos, mixtos, jerárquicos, propuestas que conllevan a la actualización de probabilidades con base en los datos han sido ingeniosamente ideadas, sin embargo el mundo moderno avanza a pasos agigantados y las formas en las que se presentan los datos han evolucionado junto con el globo, por lo que a pesar de la alta fiabilidad de los métodos estadísticos clásicos, es necesario avanzar y modernizarse, de allí la necesidad del surgimiento de áreas novedosas como la estadística espacial.
+
+Pero ¿por qué la estadística espacial? A pesar de que la respuesta puede ser tema para un desarrollo entero, en este caso basta con mencionar que es de suma importancia traer a colación que los fenómenos se extienden por tiempo y espacio, si bien son elementos que quizás no es muy frecuente tenerlos en cuenta a la hora de realizar análisis de datos, el mero hecho de considerarlos enriquece naturalmente el análisis para no solo analizar el registro crudo e intentar convertilo en información de valor, si no que para contextualizar según el lugar y la época, para intentar observar como esa conjunción de tiempo y espacio hacen de la estadística espacial la herramienta adecuada para analizar datos modernos, puesto que el sitio y el tiempo exacto de recopilación de los datos también tienen algo por decir y gracias a esto es posible llevar a cabo tareas como estimar el riesgo de una enfermedad y cuantificarlo por región y por época del año, detección temprana de brotes, considerar factores de riesgo y ambientales que son propios de los territorios, entre otros.
+
+En conclusión, la estadística espacial es un área que al gozar de una extensión de elementos clásicos, incorporación de métodos altamente eficientes como los bayesianos y de la consideración de los efectos espacio y tiempo sobre los datos, ha llegado para quedarse, potenciar el análisis y llevar al analista a un terreno con un panorama más claro donde pueda observar aquello que sin estadística espacial hubiera ignorado.
