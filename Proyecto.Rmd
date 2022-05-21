@@ -31,6 +31,8 @@ library(rgdal)
 library(geoR)
 library(raster)
 library(sf)
+library(gstat)
+library(stars)
 ```
 
 ```{r datos}
@@ -337,9 +339,10 @@ maps.plot <- function(i, j) {
   par(mfrow = c(1, 2))
     label <- paste(Titulos[i], "\n",nombres_modelos[j])
     plot(raster.ko[[j]][[i]],
-         main = paste(label, "(predicción)"), cex.main = 0.8)
+         main = paste(label, "(predicción)"), cex.main = 0.8,
+         col = viridis::inferno(20))
     plot(vars.ko[[j]][[i]], main = paste(label, "(desviación estándar)"),
-         cex.main = 0.8)
+         cex.main = 0.8, col = viridis::inferno(20))
     xv <- xvalid(datos_geo, data = datos_geo$data[, i],
                model = modelos[[j]][[i]])$error^2
     xvs <- append(xvs, mean(xv))
@@ -432,61 +435,55 @@ maps.plot(4, 3)
 ## Kriging universal
 
 ```{r}
-# Listas vacias
-map_image_gaus.uv <- list()
-map_image_exps.uv <- list()
-map_image_spes.uv <- list()
+#leyendo el shapefile
+Indianashp <- st_read("IndianaFiles/tl_2017_18_cousub.shp")
+#convirtiendolo en utm
+Indianashputm <- st_transform(Indianashp, "+proj=utm +zone=16 ellps=WGS84")
+spatial.points <- SpatialPoints(datos_def[, 7:8], 
+                                proj4string = CRS("+proj=utm +zone=16 ellps=WGS84"))
 
-krig_gaus.uv <- list()
-krig_exps.uv <- list()
-krig_spes.uv <- list()
+# Se transforma a formato sf
+datos_geo2 <- st_as_sf(as.data.frame(datos_geo), 
+                       coords = c("x", "y"),
+                       remove = FALSE, agr = "constant",
+                       crs = "+proj=utm +zone=16 ellps=WGS84")
 
-map_image_gausvar.uv <- list()
-map_image_expsvar.uv <- list()
-map_image_spesvar.uv <- list()
+# Se construye el variograma muestral con tendencia (libreria gstat)
+vario <- variogram(Temperatura ~ x + y, datos_geo2,
+                   cutoff = 200000)
 
-for(i in 1:4){
-  # Modelo gaussiano
-  krig_gaus.uv[[i]] <- krige.conv(datos_geo, data = datos_geo$data[, i],
-                               loc = prediction_grid,
-                          krige = 
-                            krige.control(obj.model = model_mco_gaus[[i]],
-                                          trend.d = trend.spatial("~ y", datos_geo))
-                          )
-  
-  map_image_gaus.uv[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
-                                             krig_gaus.uv[[i]]$predict))
-  
-  map_image_gausvar.uv[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
-                                             sqrt(krig_gaus.uv[[i]]$krige.var)))
-  #Modelo Exponencial
-  krig_exps.uv[[i]] <- krige.conv(datos_geo, data = datos_geo$data[, i],
-                               loc = prediction_grid,
-                          krige = 
-                            krige.control(obj.model = model_mco_exps[[i]]))
-  
-  map_image_exps.uv[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
-                                             krig_exps.uv[[i]]$predict))
-  
-  map_image_expsvar.uv[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
-                                             sqrt(krig_exps.uv[[i]]$krige.var)))
-  
-  # Modelo esferico
-  krig_spes.uv[[i]] <- krige.conv(datos_geo, data = datos_geo$data[, i],
-                               loc = prediction_grid,
-                          krige = 
-                            krige.control(obj.model = model_mco_spes[[i]]))
-  
-  map_image_spes.uv[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
-                                             krig_spes.uv[[i]]$predict))
-  
-   map_image_spesvar.uv[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
-                                             sqrt(krig_spes.uv[[i]]$krige.var)))
-}
+# Se ajusta un modelo de variograma gaussiano
+fit <- fit.variogram(vario, vgm(model = "Gau", nugget = NA), fit.method = 2)
+
+# Se define la malla de predicciones
+buffer <- Indianashputm %>%
+  st_geometry() %>%
+  st_buffer(40)
+
+
+grid <- buffer %>% 
+  st_as_stars(nx = 100, ny = 100)
+
+pred <- krige(formula = Temperatura ~ x + y,
+              locations = datos_geo2, model = fit,
+              newdata = grid)
+
+grid$var1.pred <- pred$var1.pred
+grid$var1.var <- pred$var1.var
+
+par(mfrow = c(1, 2))
+plot(grid["var1.pred"], breaks = "equal", 
+     col = viridis::inferno(20), 
+     key.pos = 4,
+     main = "Kriging universal (predicciones)")
+
+plot(grid["var1.var"] %>% sqrt(), breaks = "equal",
+     col = viridis::inferno(20), 
+     key.pos = 4,
+     main = "Kriging universal (desviación estándar)")
+
 ```
 
-
-## Interpolación IDW
 
 <!-- Simon -->
 # Resultados ubicados geográficamente
@@ -499,13 +496,6 @@ como de la temperatura.
 
 
 ```{r, results='hide', warning=F}
-#leyendo el shapefile
-Indianashp <- st_read("IndianaFiles/tl_2017_18_cousub.shp")
-#convirtiendolo en utm
-Indianashputm <- st_transform(Indianashp, "+proj=utm +zone=16 ellps=WGS84")
-spatial.points <- SpatialPoints(datos_def[, 7:8], 
-                                proj4string = CRS("+proj=utm +zone=16 ellps=WGS84"))
-
 plot(Indianashputm$geometry, main = "Puntos ubicados en el mapa de Indiana",
      axes = T)
 points(spatial.points, col = "red", pch = 20, cex = 2)
@@ -517,4 +507,12 @@ método de interpolación exacto, por lo que el valor de las variables de
 interés tendrá el mismo valor de predicción que obsrevado y esto es un
 aspecto a tener en cuenta a la hora de hacer conclusiones.
 
+Finalmente se presenta el mejor modelo de entre todos los ajustados.
+
+```{r}
+pa1 <- readRDS("pa1.Rds")
+pa2 <- readRDS("pa2.Rds")
+
+ggpubr::ggarrange(pa1, pa2, ncol = 2)
+```
 
