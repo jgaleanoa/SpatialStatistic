@@ -263,77 +263,228 @@ for(i in 1:4){
 }
 ```
 
+
+## Kriging ordinario
+
 ```{r, include=F}
-prediction_grid <- expand.grid(seq(min(datos_geo$coords[, 1]),
-                                   max(datos_geo$coords[, 1]), 
+#xmin: 403477.8 ymin: 4180915 xmax: 692181.8 ymax: 4625475
+prediction_grid <- expand.grid(seq(403477.8, 692181.8, 
                                    length.out = 100),
-                               seq(min(datos_geo$coords[, 2]),
-                                   max(datos_geo$coords[, 2]),
+                               seq(4180915, 4625475,
                                    length.out = 100))
 # Listas vacias
-map_image_gaus <- list()
-map_image_exps <- list()
-map_image_spes <- list()
+map_image_gaus.ko <- list()
+map_image_exps.ko <- list()
+map_image_spes.ko <- list()
 
-krig_rain_gaus <- list()
-krig_rain_exps <- list()
-krig_rain_spes <- list()
+krig_gaus.ko <- list()
+krig_exps.ko <- list()
+krig_spes.ko <- list()
+
+map_image_gausvar.ko <- list()
+map_image_expsvar.ko <- list()
+map_image_spesvar.ko <- list()
 
 for(i in 1:4){
   # Modelo gaussiano
-  krig_rain_gaus[[i]] <- krige.conv(datos_geo, data = datos_geo$data[, i],
+  krig_gaus.ko[[i]] <- krige.conv(datos_geo, data = datos_geo$data[, i],
                                loc = prediction_grid,
                           krige = 
                             krige.control(obj.model = model_mco_gaus[[i]]))
   
-  map_image_gaus[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
-                                             krig_rain_gaus[[i]]$predict))
+  map_image_gaus.ko[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
+                                             krig_gaus.ko[[i]]$predict))
+  
+  map_image_gausvar.ko[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
+                                             sqrt(krig_gaus.ko[[i]]$krige.var)))
   #Modelo Exponencial
-  krig_rain_exps[[i]] <- krige.conv(datos_geo, data = datos_geo$data[, i],
+  krig_exps.ko[[i]] <- krige.conv(datos_geo, data = datos_geo$data[, i],
                                loc = prediction_grid,
                           krige = 
                             krige.control(obj.model = model_mco_exps[[i]]))
   
-  map_image_exps[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
-                                             krig_rain_exps[[i]]$predict))
-  # Modelo esférico
-  krig_rain_spes[[i]] <- krige.conv(datos_geo, data = datos_geo$data[, i],
+  map_image_exps.ko[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
+                                             krig_exps.ko[[i]]$predict))
+  
+  map_image_expsvar.ko[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
+                                             sqrt(krig_exps.ko[[i]]$krige.var)))
+  
+  # Modelo esferico
+  krig_spes.ko[[i]] <- krige.conv(datos_geo, data = datos_geo$data[, i],
                                loc = prediction_grid,
                           krige = 
                             krige.control(obj.model = model_mco_spes[[i]]))
   
-  map_image_spes[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
-                                             krig_rain_spes[[i]]$predict))
+  map_image_spes.ko[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
+                                             krig_spes.ko[[i]]$predict))
+  
+   map_image_spesvar.ko[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
+                                             sqrt(krig_spes.ko[[i]]$krige.var)))
 }
 ```
 
-```{r}
-mapas <- list(map_image_gaus, map_image_exps, map_image_spes)
+
+```{r, message=F}
+raster.ko <- list(map_image_gaus.ko, map_image_exps.ko, map_image_spes.ko)
+vars.ko <- list(map_image_gausvar.ko, map_image_expsvar.ko, map_image_spesvar.ko)
 nombres_modelos <- c("Modelo gaussiano", "Modelo exponencial",
                      "Modelo esférico")
 modelos <- list(model_mco_gaus, model_mco_exps, model_mco_spes)
 xvs <- c()
 labels <- c()
-for(i in 1:4){
-  contar <- 1
-  par(mfrow = c(2, 2))
-  for(j in 1:3){
-    label <- paste(Titulos[i], "\n",nombres_modelos[contar])
-    plot(mapas[[j]][[i]],
-         main = label)
+
+maps.plot <- function(i, j) {
+  par(mfrow = c(1, 2))
+    label <- paste(Titulos[i], "\n",nombres_modelos[j])
+    plot(raster.ko[[j]][[i]],
+         main = paste(label, "(predicción)"), cex.main = 0.8)
+    plot(vars.ko[[j]][[i]], main = paste(label, "(desviación estándar)"),
+         cex.main = 0.8)
     xv <- xvalid(datos_geo, data = datos_geo$data[, i],
                model = modelos[[j]][[i]])$error^2
     xvs <- append(xvs, mean(xv))
     labels <- append(labels, str_replace(label, " \\n ", " "))
-    contar <- contar + 1
-  }
 }
-
-resultado_cv <- data.frame(Modelo = labels, MSE = xvs) %>% 
-  arrange(MSE)
 ```
 
-## Kriging 
+### Irradiación Promedio {.tabset .tabset-fade .tabset-pills}
+
+#### Modelo gaussiano
+
+```{r, results='hide'}
+maps.plot(1, 1)
+```
+
+#### Modelo exponencial
+
+```{r, results='hide'}
+maps.plot(1, 2)
+```
+
+#### Modelo esférico
+
+```{r, results='hide'}
+maps.plot(1, 3)
+```
+
+### Irradiación mediana {.tabset .tabset-fade .tabset-pills}
+
+#### Modelo gaussiano
+
+```{r, results='hide'}
+maps.plot(2, 1)
+```
+
+#### Modelo exponencial
+
+```{r, results='hide'}
+maps.plot(2, 2)
+```
+
+#### Modelo esférico
+
+```{r, results='hide'}
+maps.plot(2, 3)
+```
+
+
+### Temperatura promedio {.tabset .tabset-fade .tabset-pills}
+
+#### Modelo gaussiano
+
+```{r, results='hide'}
+maps.plot(3, 1)
+```
+
+#### Modelo exponencial
+
+```{r, results='hide'}
+maps.plot(3, 2)
+```
+
+#### Modelo esférico
+
+```{r, results='hide'}
+maps.plot(3, 3)
+```
+
+### Temperatura mediana {.tabset .tabset-fade .tabset-pills}
+
+#### Modelo gaussiano
+
+```{r, results='hide'}
+maps.plot(4, 1)
+```
+
+#### Modelo exponencial
+
+```{r, results='hide'}
+maps.plot(4, 2)
+```
+
+#### Modelo esférico
+
+```{r, results='hide'}
+maps.plot(4, 3)
+```
+
+
+## Kriging universal
+
+```{r}
+# Listas vacias
+map_image_gaus.uv <- list()
+map_image_exps.uv <- list()
+map_image_spes.uv <- list()
+
+krig_gaus.uv <- list()
+krig_exps.uv <- list()
+krig_spes.uv <- list()
+
+map_image_gausvar.uv <- list()
+map_image_expsvar.uv <- list()
+map_image_spesvar.uv <- list()
+
+for(i in 1:4){
+  # Modelo gaussiano
+  krig_gaus.uv[[i]] <- krige.conv(datos_geo, data = datos_geo$data[, i],
+                               loc = prediction_grid,
+                          krige = 
+                            krige.control(obj.model = model_mco_gaus[[i]],
+                                          trend.d = trend.spatial("~ y", datos_geo))
+                          )
+  
+  map_image_gaus.uv[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
+                                             krig_gaus.uv[[i]]$predict))
+  
+  map_image_gausvar.uv[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
+                                             sqrt(krig_gaus.uv[[i]]$krige.var)))
+  #Modelo Exponencial
+  krig_exps.uv[[i]] <- krige.conv(datos_geo, data = datos_geo$data[, i],
+                               loc = prediction_grid,
+                          krige = 
+                            krige.control(obj.model = model_mco_exps[[i]]))
+  
+  map_image_exps.uv[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
+                                             krig_exps.uv[[i]]$predict))
+  
+  map_image_expsvar.uv[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
+                                             sqrt(krig_exps.uv[[i]]$krige.var)))
+  
+  # Modelo esferico
+  krig_spes.uv[[i]] <- krige.conv(datos_geo, data = datos_geo$data[, i],
+                               loc = prediction_grid,
+                          krige = 
+                            krige.control(obj.model = model_mco_spes[[i]]))
+  
+  map_image_spes.uv[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
+                                             krig_spes.uv[[i]]$predict))
+  
+   map_image_spesvar.uv[[i]] <- rasterFromXYZ(data.frame(prediction_grid,
+                                             sqrt(krig_spes.uv[[i]]$krige.var)))
+}
+```
+
 
 ## Interpolación IDW
 
@@ -347,7 +498,7 @@ se cuentan con 25 puntos donde se tomaron mediciones tanto de la irradiación so
 como de la temperatura.
 
 
-```{r, include=F}
+```{r, results='hide', warning=F}
 #leyendo el shapefile
 Indianashp <- st_read("IndianaFiles/tl_2017_18_cousub.shp")
 #convirtiendolo en utm
@@ -355,7 +506,8 @@ Indianashputm <- st_transform(Indianashp, "+proj=utm +zone=16 ellps=WGS84")
 spatial.points <- SpatialPoints(datos_def[, 7:8], 
                                 proj4string = CRS("+proj=utm +zone=16 ellps=WGS84"))
 
-plot(Indianashputm$geometry, main = "Puntos ubicados en el mapa de Indiana")
+plot(Indianashputm$geometry, main = "Puntos ubicados en el mapa de Indiana",
+     axes = T)
 points(spatial.points, col = "red", pch = 20, cex = 2)
 ```
 
