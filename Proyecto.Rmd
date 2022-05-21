@@ -28,6 +28,7 @@ library(leaflet)
 library(ade4)
 library(vegan)
 library(rgdal)
+library(sf)
 ```
 
 ```{r datos}
@@ -168,5 +169,30 @@ En ambos casos el valor p de la prueba es muy pequeño (menor a 0.001) con lo qu
 
 <!-- Simon -->
 # Resultados ubicados geográficamente
+
+## Ubicación de los puntos en el mapa
+
+Incialmente se tiene una visualizción de las unidades de muestreo en el mapa,
+se cuentan con 25 puntos donde se tomaron mediciones tanto de la irradiación solar
+como de la temperatura.
+
+
+```{r, include=F}
+#leyendo el shapefile
+Indianashp <- st_read("IndianaFiles/tl_2017_18_cousub.shp")
+#convirtiendolo en utm
+Indianashputm <- st_transform(Indianashp, "+proj=utm +zone=16 ellps=WGS84")
+spatial.points <- SpatialPoints(datos_def[, 7:8], 
+                                proj4string = CRS("+proj=utm +zone=16 ellps=WGS84"))
+
+plot(Indianashputm$geometry, main = "Puntos ubicados en el mapa de Indiana")
+points(spatial.points, col = "red", pch = 20, cex = 2)
+```
+
+
+Es importante saber donde se encuentran estas unidades ya que el kriging es un
+método de interpolación exacto, por lo que el valor de las variables de 
+interés tendrá el mismo valor de predicción que obsrevado y esto es un
+aspecto a tener en cuenta a la hora de hacer conclusiones.
 
 
