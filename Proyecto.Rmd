@@ -1,23 +1,14 @@
 ---
 title: "¿Dónde es mejor sembrar maíz según la temperatura en indiana?"
-author: 
-  - "Juan José Galeano Arenas"
-  - "Simón Pedro Galeano Muñoz"
-  - "Germán Alonso Patiño Hurtado"
-date: 24/05/2022
 output: 
   html_document:
+    css: "styles.css"
     toc: true
     theme: paper
     code_folding: show
     toc_float: true
 ---
 
-<style>
-.html-widget {
-    margin: auto;
-}
-</style>
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F, fig.pos = "H", fig.align = "center")
@@ -75,17 +66,26 @@ p2 <- ggplot(datos, aes(ALLSKY_SFC_LW_DWN)) +
   theme(plot.title = element_text(hjust = 0.5))
 ggpubr::ggarrange(p1, p2, nrow = 1)
 ```   
-Dada la aparente simetría en los histogramas, simplificar las mediciones de dichas variables con sus respectivos promedios no es una idea descabellada.
+
+Dada la aparente simetría en los histogramas, simplificar las mediciones de dichas variables con sus respectivos promedios y meidanas no es una idea 
+descabellada.
 
 # Base de datos definitiva
 
-La base de datos definitiva se construye agrupando los datos por la longitud y latitud debido a que, como se mencionó previamente, se tienen múltiples mediciones de las variables en cada ubicación los cuales corresponden a los primeros tres meses del año, una vez agrupadas las ubicaciones, se promedian todos los valores medidos en dichas ubicaciones de las variables de interés, esto gracias a las funciones `group_by()` y `summarise()` de la librería `dplyr`. La base de datos resultante tiene la siguiente estructura
+La base de datos definitiva se construye agrupando los datos por la longitud y 
+latitud debido a que, como se mencionó previamente, se tienen múltiples 
+mediciones de las variables en cada ubicación, los cuales corresponden a los 
+primeros tres meses del año. Una vez agrupadas las ubicaciones, se promedian 
+todos los valores medidos en dichas ubicaciones de las variables de interés, 
+esto gracias a las funciones `group_by()` y `summarise()` de la librería 
+`dplyr`. La base de datos resultante tiene la siguiente estructura
 
 ```{r datos-def}
 kable(datos_def[1:5,], 
     col.names = c("Latitud", "Longitud",
                   "Irradiación media", "Irradiación mediana",
-                  "Temperatura media", "Temperatura mediana")) %>%
+                  "Temperatura media", "Temperatura mediana"),
+    caption = "Presentación de algunos datos") %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
@@ -95,8 +95,22 @@ Para finalizar se muestra el mapa de las ubicaciones de muestreo.
 mapa_base <- leaflet() %>%
   addTiles()
 mapa_base %>% 
-  addCircleMarkers(lat=~LAT, lng =~LON, 
-                   color = "red", radius = 0.5, data = datos)
+  addMarkers(lat=~LAT, lng =~LON, data = datos_def,
+                   icon = makeIcon(iconUrl = "./static/corn.png",
+                            iconWidth = 24, iconHeight = 24),
+             popup = paste(
+               "<h3>Información resumen</h3>",
+               paste("Irradiación media:",
+                     round(datos_def$Irradiacion, 2)),
+               paste("Irradiación mediana:",
+                     round(datos_def$IrradiacionMediana), 2),
+               paste("Temperatura media:", 
+                     round(datos_def$Temperatura, 2)),
+               paste("Temperatura meidana:", 
+                     round(datos_def$TemperaturaMediana),2),
+               sep = "<br>"
+             )
+  )
 ```
 
 
@@ -207,7 +221,15 @@ Para cada caso el valor p de la prueba es muy pequeño (menor a 0.001) con lo qu
 <!-- juanjo -->
 # Interpolación espacial
 
-## Variograma
+Dada la existencia de autocorrelación espacial, el siguiente paso es encontrar un modelo
+útil para realizar predicciones espaciales la región de interés, es decir, el estado de 
+indiana.
+
+## Semivariograma
+
+A continuación se presenta el ajuste de semivariogramas tipo bin para las variables
+consideradas para 20 puntos usandos modelos gaussiano, exponencial y esférico
+respectivamente.
 
 ```{r echo=F}
 datos_geo<- as.geodata(datos_def, coords.col = 7:8,
@@ -265,8 +287,21 @@ for(i in 1:4){
 }
 ```
 
+En primera instancia se destaca la autocorrelación espacial (que ya se habia verificado
+previamente) debido a que una considerable cantidad de puntos caen fuera de las bandas
+de confianza. 
+Se puede apreciar que, en general, los puntos no están acotados lo cual es una señal de 
+que la meseta es no finita y por la tanto se tendría estacionariedad intrínseca, por lo
+tanto es adecuado considerar modelos que puedan modelar tendencia en la media.
+Finalmente, se destaca que el modelo de semivarianza que mejor se ajusta es el gaussiano
+mientras que el esférico y esxponencial presentan comportamientos similares.
 
-## Kriging ordinario
+## Kriging ordinario {.tabset .tabset-fade .tabset-pills}
+
+Se realiza realiza el ajuste de kriging ordinario usando el método de mínimos cuadrados
+ordinarios. este tipo de kriging es el más sencillo y es usado en primera instancia para
+observar el comportamiento de las predicciones espaciales con los diferentes modelos
+de semivarianza.
 
 ```{r, include=F}
 #xmin: 403477.8 ymin: 4180915 xmax: 692181.8 ymax: 4625475
@@ -335,14 +370,17 @@ modelos <- list(model_mco_gaus, model_mco_exps, model_mco_spes)
 xvs <- c()
 labels <- c()
 
-maps.plot <- function(i, j) {
-  par(mfrow = c(1, 2))
+maps.plot <- function(i, j, plot.var = F) {
+  #par(mfrow = c(1, 2))
     label <- paste(Titulos[i], "\n",nombres_modelos[j])
-    plot(raster.ko[[j]][[i]],
+    if (!plot.var) {
+      plot(raster.ko[[j]][[i]],
          main = paste(label, "(predicción)"), cex.main = 0.8,
          col = viridis::inferno(20))
-    plot(vars.ko[[j]][[i]], main = paste(label, "(desviación estándar)"),
+    } else {
+      plot(vars.ko[[j]][[i]], main = paste(label, "(desviación estándar)"),
          cex.main = 0.8, col = viridis::inferno(20))
+    }
     xv <- xvalid(datos_geo, data = datos_geo$data[, i],
                model = modelos[[j]][[i]])$error^2
     xvs <- append(xvs, mean(xv))
@@ -352,89 +390,244 @@ maps.plot <- function(i, j) {
 
 ### Irradiación Promedio {.tabset .tabset-fade .tabset-pills}
 
-#### Modelo gaussiano
+#### Modelo gaussiano {.tabset .tabset-fade .tabset-pills}
+
+##### Predicción 
 
 ```{r, results='hide'}
 maps.plot(1, 1)
 ```
 
-#### Modelo exponencial
+##### Desviación 
+
+```{r, results='hide'}
+maps.plot(1, 1, T)
+```
+
+#### Modelo exponencial {.tabset .tabset-fade .tabset-pills}
+
+##### Predicción
 
 ```{r, results='hide'}
 maps.plot(1, 2)
 ```
 
-#### Modelo esférico
+##### Desviación 
+
+```{r, results='hide'}
+maps.plot(1, 2, T)
+```
+
+#### Modelo esférico {.tabset .tabset-fade .tabset-pills}
+
+##### Predicción 
 
 ```{r, results='hide'}
 maps.plot(1, 3)
 ```
 
+##### Desviación 
+
+```{r, results='hide'}
+maps.plot(1, 3, T)
+```
+
 ### Irradiación mediana {.tabset .tabset-fade .tabset-pills}
 
-#### Modelo gaussiano
+#### Modelo gaussiano {.tabset .tabset-fade .tabset-pills}
+
+##### Predicción 
 
 ```{r, results='hide'}
 maps.plot(2, 1)
 ```
 
-#### Modelo exponencial
+##### Desviación 
+
+```{r, results='hide'}
+maps.plot(2, 1, T)
+```
+
+#### Modelo exponencial {.tabset .tabset-fade .tabset-pills}
+
+##### Predicción
 
 ```{r, results='hide'}
 maps.plot(2, 2)
 ```
 
-#### Modelo esférico
+##### Desviación 
 
 ```{r, results='hide'}
-maps.plot(2, 3)
+maps.plot(2, 2, T)
 ```
 
+#### Modelo esférico {.tabset .tabset-fade .tabset-pills}
 
-### Temperatura promedio {.tabset .tabset-fade .tabset-pills}
-
-#### Modelo gaussiano
+##### Predicción 
 
 ```{r, results='hide'}
 maps.plot(3, 1)
 ```
 
-#### Modelo exponencial
+##### Desviación 
+
+```{r, results='hide'}
+maps.plot(3, 1, T)
+```
+
+### Temperatura promedio {.tabset .tabset-fade .tabset-pills}
+
+#### Modelo gaussiano {.tabset .tabset-fade .tabset-pills}
+
+##### Predicción 
+
+```{r, results='hide'}
+maps.plot(3, 1)
+```
+
+##### Desviación 
+
+```{r, results='hide'}
+maps.plot(3, 1, T)
+```
+
+Se puede observar que entre todos los modelos de kriging ordinario,
+el que mejor desempeño presenta es aquel donde se asume una estructura
+de covarianza gaussiana para predecir la temperatura promedio.
+
+```{r}
+crossval.ok <- readRDS("crossvalok.Rds")
+crossval.ok %>% 
+  kable(col.names = c("Descripción", "RMSE"),
+        caption = "Comparación de ajustes vía kriging ordinario") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+
+Dicho lo anterior y teniendo en cuenta la alta correlación entre las 
+variables repuesta (redundancia) como se puede ver en el gráfico 
+que se muestra inmediatamente abajo, los posteriores análisis se realizarán
+teniendo a la temperatura promedio como única variable respuesta.
+
+
+```{r}
+cors <- round(cor(datos_def[, 3:6]), 4)
+cors[upper.tri(cors)] <- NA
+cors
+
+cors <- reshape2::melt(cors, na.rm = T)
+
+ggplot(cors, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  geom_text(aes(label = value)) +
+  labs(x = "", y = "", title = "Matriz de correlaciones") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = .5)) +
+  scale_fill_gradientn(colors = viridis::viridis(20))
+```
+
+
+#### Modelo exponencial {.tabset .tabset-fade .tabset-pills}
+
+##### Predicción
 
 ```{r, results='hide'}
 maps.plot(3, 2)
 ```
 
-#### Modelo esférico
+##### Desviación 
+
+```{r, results='hide'}
+maps.plot(3, 2, T)
+```
+
+#### Modelo esférico {.tabset .tabset-fade .tabset-pills}
+
+##### Predicción 
 
 ```{r, results='hide'}
 maps.plot(3, 3)
 ```
 
+##### Desviación 
+
+```{r, results='hide'}
+maps.plot(3, 3, T)
+```
+
 ### Temperatura mediana {.tabset .tabset-fade .tabset-pills}
 
-#### Modelo gaussiano
+#### Modelo gaussiano {.tabset .tabset-fade .tabset-pills}
+
+##### Predicción 
 
 ```{r, results='hide'}
 maps.plot(4, 1)
 ```
 
-#### Modelo exponencial
+##### Desviación 
+
+```{r, results='hide'}
+maps.plot(4, 1, T)
+```
+
+#### Modelo exponencial {.tabset .tabset-fade .tabset-pills}
+
+##### Predicción
 
 ```{r, results='hide'}
 maps.plot(4, 2)
 ```
 
-#### Modelo esférico
+##### Desviación 
+
+```{r, results='hide'}
+maps.plot(4, 2, T)
+```
+
+#### Modelo esférico {.tabset .tabset-fade .tabset-pills}
+
+##### Predicción 
 
 ```{r, results='hide'}
 maps.plot(4, 3)
 ```
 
+##### Desviación 
 
-## Kriging universal
+```{r, results='hide'}
+maps.plot(4, 3, T)
+```
+
+
+Luego de ajustar todos los modelos y realizar las respectivas predicciones se ve una
+tendencia clara, los modelos exponencial y esféricos tienen comportamientos muy similares
+en las predicciones realizadas y no son muy adecuados puesto que los valores de las
+desviaciones estándar de predicción son muy bajos cerca de los puntos de muestreo pero
+en ubicaciones un ligeramente distantes de estas dichos valores aumentan 
+sustancialmente, sugiriendo que dichos modelos sobreajustan los datos. Por otro lado, los
+modelos gaussianos constrastan totalmente con el exponencial y esferico pues las 
+desviaciones estándar se mantienen bajas en la gran mayoría de ventana de predicción
+sugiriendo una buena capacidad de generalizar la tendencia.
+
+
+## Kriging universal {.tabset .tabset-fade .tabset-pills}
+
+Si bien el kriging ordinario dio muy buenos resultados, hay que notar la
+tendencia lineal existente entre la coordenada en y de los datos y la
+respuesta considerada como se puede ver a continuación.
 
 ```{r}
+plot(datos_geo)
+```
+
+
+Por tanto se opta por ajustar un modelo de kriging universal con media lineal en aras
+de observar si dicha consideración mejora el rendimiento del modelo. Este fue
+el resultado.
+
+```{r, results='hide', warning=F}
 #leyendo el shapefile
 Indianashp <- st_read("IndianaFiles/tl_2017_18_cousub.shp")
 #convirtiendolo en utm
@@ -471,29 +664,65 @@ pred <- krige(formula = Temperatura ~ x + y,
 grid$var1.pred <- pred$var1.pred
 grid$var1.var <- pred$var1.var
 
-par(mfrow = c(1, 2))
+```
+
+Se puede notar que en cuanto a la predicción es distinto al modelo seleccionado
+previamente, sin embargo el patrón en el mapa de calor de las predicciones
+se ajusta más a lo que se esperaría en la realidad.
+
+### Predicción 
+
+```{r, results='hide'}
 plot(grid["var1.pred"], breaks = "equal", 
      col = viridis::inferno(20), 
      key.pos = 4,
      main = "Kriging universal (predicciones)")
+```
 
+
+### Desviación
+
+
+```{r, results='hide'}
 plot(grid["var1.var"] %>% sqrt(), breaks = "equal",
      col = viridis::inferno(20), 
      key.pos = 4,
      main = "Kriging universal (desviación estándar)")
-
 ```
 
+Una vez obtenido el resultado del modelo, este se compara con el
+modelo ajustado vía kriging ordinario.
+
+
+```{r}
+cv.uk <- readRDS("cv_uk.Rds")
+rmse.uk <- sqrt(mean((cv.uk$residual)^2))
+comparison <- data.frame(
+  Modelo = c("Temperatura promedio kriging ordinario",
+             "Temperatura promedio kriging universal"),
+  RMSE = c(crossval.ok[1, 2], rmse.uk))
+
+comparison %>% 
+  kable(col.names = c("Modelo", "RMSE"),
+        caption = "Comparación de modelos") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+Si bien presenta una disminución del RMSE que a priori parece no muy grande,
+es fundamental tener en cuenta que esta métrica es de decrecimiento lento
+cuando se acerca al cero por lo que dicho decremento realmente es una gran mejora
+en el modelo. Adicionalmente, el ajuste a través de kriging universal presenta
+una menor variabilidad en las estimaciones respecto a su similar, por lo que en
+definitiva es el seleccionado entre todos los candidatos considerados previamente.
 
 <!-- Simon -->
 # Resultados ubicados geográficamente
 
 ## Ubicación de los puntos en el mapa
 
-Incialmente se tiene una visualizción de las unidades de muestreo en el mapa,
-se cuentan con 25 puntos donde se tomaron mediciones tanto de la irradiación solar
-como de la temperatura.
-
+Incialmente se tiene una visualización de las unidades de muestreo en el mapa,
+se cuenta con 25 puntos donde se tomaron mediciones tanto de la irradiación 
+solar como de la temperatura como ya se había descrito anteriormente.
 
 ```{r, results='hide', warning=F}
 plot(Indianashputm$geometry, main = "Puntos ubicados en el mapa de Indiana",
@@ -504,10 +733,12 @@ points(spatial.points, col = "red", pch = 20, cex = 2)
 
 Es importante saber donde se encuentran estas unidades ya que el kriging es un
 método de interpolación exacto, por lo que el valor de las variables de 
-interés tendrá el mismo valor de predicción que obsrevado y esto es un
+interés tendrá el mismo valor de predicción que observado y esto es un
 aspecto a tener en cuenta a la hora de hacer conclusiones.
 
-Finalmente se presenta el mejor modelo de entre todos los ajustados.
+## Presentación del mejor modelo
+
+Llegados a este punto, se presenta el mejor modelo de entre todos los ajustados.
 
 ```{r}
 pa1 <- readRDS("pa1.Rds")
@@ -516,3 +747,26 @@ pa2 <- readRDS("pa2.Rds")
 ggpubr::ggarrange(pa1, pa2, ncol = 2)
 ```
 
+De allí se puede observar que el modelo refleja los principios de autocorrelación 
+espacial, puesto que se espera que lugares geográficos cercanos tengan valores
+similares y lugares lejanos difieran en el valor de la variable regionalizada
+en cuestión; lo que es una señal de buen ajuste.
+
+# Conclusiones
+<ul id="conc">
+<li> En definitiva los tres primeros meses del año no son ideales para la siembra
+de maíz, puesto que la temperatura está lejos de ser la requerida y en el mejor
+de los casos se contará con lugares donde se alcance un máximo de 1 °C.</li>
+<li> Como es de esperarse, el modelo es fiel a la realidad, pues este refleja
+que los lugares tendrán menor temperatura entre más se encuentren al norte.</li>
+<li> A medida que se aleja geográficamente de los puntos de muestreo, se tiene el
+comportamiento natural de un aumento en la desviación estándar de las predicciones,
+sin embargo se alcanza una incertidumbre máxima de 0.25 °C en promedio por lo que
+se obtuvo no solo un buen ajuste, sino que uno muy fiable en lo que al error
+de las estimaciones respecta.</li>
+<li> Resulta de gran importancia considerar las tendencias que la respuesta pueda tener
+con alguna dirección, pues al hacerlo es muy plausible que se pueda obtener mejoría a la
+hora de analizar resultados en el proceso de modelamiento y predicción.</li>
+<li> En definitiva el modelo gaussiano fue aquel que presentó mejor ajuste para
+explicar la estructura de covarianza del proceso estocástico en cuestión.</li>
+</ul>
