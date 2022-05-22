@@ -69,7 +69,7 @@ p2 <- ggplot(datos, aes(ALLSKY_SFC_LW_DWN)) +
 ggpubr::ggarrange(p1, p2, nrow = 1)
 ```   
 
-Dada la aparente simetría en los histogramas, simplificar las mediciones de dichas variables con sus respectivos promedios y meidanas no es una idea 
+Dada la aparente simetría en los histogramas, simplificar las mediciones de dichas variables con sus respectivos promedios y medianas no es una idea 
 descabellada.
 
 # Base de datos definitiva
@@ -77,17 +77,17 @@ descabellada.
 La base de datos definitiva se construye agrupando los datos por la longitud y 
 latitud debido a que, como se mencionó previamente, se tienen múltiples 
 mediciones de las variables en cada ubicación, los cuales corresponden a los 
-primeros tres meses del año. Una vez agrupadas las ubicaciones, se promedian 
-todos los valores medidos en dichas ubicaciones de las variables de interés, 
-esto gracias a las funciones `group_by()` y `summarise()` de la librería 
-`dplyr`. La base de datos resultante tiene la siguiente estructura
+primeros tres meses del año. Una vez agrupadas las ubicaciones, se promedia y
+se toma la mediana de todos los valores medidos en dichas ubicaciones de las 
+variables de interés. La base de datos resultante tiene la siguiente estructura
 
 ```{r datos-def}
 kable(datos_def[1:5,], 
     col.names = c("Latitud", "Longitud",
                   "Irradiación media", "Irradiación mediana",
                   "Temperatura media", "Temperatura mediana"),
-    caption = "Presentación de algunos datos") %>%
+    caption = "Presentación de algunos datos",
+    row.names = F) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
@@ -296,7 +296,7 @@ Se puede apreciar que, en general, los puntos no están acotados lo cual es una 
 que la meseta es no finita y por la tanto se tendría estacionariedad intrínseca, por lo
 tanto es adecuado considerar modelos que puedan modelar tendencia en la media.
 Finalmente, se destaca que el modelo de semivarianza que mejor se ajusta es el gaussiano
-mientras que el esférico y esxponencial presentan comportamientos similares.
+mientras que el esférico y exponencial presentan comportamientos similares.
 
 ## Kriging ordinario {.tabset .tabset-fade .tabset-pills}
 
@@ -498,7 +498,8 @@ de covarianza gaussiana para predecir la temperatura promedio.
 crossval.ok <- readRDS("crossvalok.Rds")
 crossval.ok %>% 
   kable(col.names = c("Descripción", "RMSE"),
-        caption = "Comparación de ajustes vía kriging ordinario") %>%
+        caption = "Comparación de ajustes vía kriging ordinario",
+        row.names = F) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
@@ -605,6 +606,8 @@ maps.plot(4, 3, T)
 ```
 
 
+## Todelete {.unlisted .unnumbered}
+
 Luego de ajustar todos los modelos y realizar las respectivas predicciones se ve una
 tendencia clara, los modelos exponencial y esféricos tienen comportamientos muy similares
 en las predicciones realizadas y no son muy adecuados puesto que los valores de las
@@ -615,7 +618,6 @@ modelos gaussianos constrastan totalmente con el exponencial y esferico pues las
 desviaciones estándar se mantienen bajas en la gran mayoría de ventana de predicción
 sugiriendo una buena capacidad de generalizar la tendencia.
 
-
 ## Kriging universal {.tabset .tabset-fade .tabset-pills}
 
 Si bien el kriging ordinario dio muy buenos resultados, hay que notar la
@@ -623,7 +625,9 @@ tendencia lineal existente entre la coordenada en y de los datos y la
 respuesta considerada como se puede ver a continuación.
 
 ```{r}
-plot(datos_geo)
+datos_geo_copy <- as.geodata(datos_def, coords.col = 7:8,
+                       data.col = 5)
+plot(datos_geo_copy)
 ```
 
 
@@ -708,7 +712,7 @@ comparison <- data.frame(
 
 comparison %>% 
   kable(col.names = c("Modelo", "RMSE"),
-        caption = "Comparación de modelos") %>%
+        caption = "Comparación de modelos", row.names = F) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
