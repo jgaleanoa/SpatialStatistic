@@ -3,6 +3,8 @@ title: "¿Dónde es mejor sembrar maíz según la temperatura en indiana?"
 output: 
   html_document:
     css: "styles.css"
+    includes:
+      before_body: static/slider/index.html
     toc: true
     theme: paper
     code_folding: show
@@ -278,7 +280,7 @@ Titulos <- c("Irradiación promedio", "Irradiación mediana",
 for(i in 1:4){
   plot(variogramas[[i]], envelope = bandas_conf[[i]], 
        pch = 19, las = 1, main = Titulos[[i]],
-       xlab = "Distancia (km)", ylab = "Semivarianza")
+       xlab = "Distancia [m]", ylab = "Semivarianza")
   lines(model_mco_exps[[i]], col="blue")
   lines(model_mco_gaus[[i]], col="red")
   lines(model_mco_spes[[i]], col="purple")
@@ -376,10 +378,12 @@ maps.plot <- function(i, j, plot.var = F) {
     if (!plot.var) {
       plot(raster.ko[[j]][[i]],
          main = paste(label, "(predicción)"), cex.main = 0.8,
-         col = viridis::inferno(20))
+         col = viridis::inferno(20), xaxt = "n", yaxt = "n",
+         xlim = c(403476, 692182))
     } else {
       plot(vars.ko[[j]][[i]], main = paste(label, "(desviación estándar)"),
-         cex.main = 0.8, col = viridis::inferno(20))
+         cex.main = 0.8, col = viridis::inferno(20), xaxt = "n", yaxt = "n",
+         xlim = c(403476, 692182))
     }
     xv <- xvalid(datos_geo, data = datos_geo$data[, i],
                model = modelos[[j]][[i]])$error^2
@@ -514,7 +518,6 @@ teniendo a la temperatura promedio como única variable respuesta.
 ```{r}
 cors <- round(cor(datos_def[, 3:6]), 4)
 cors[upper.tri(cors)] <- NA
-cors
 
 cors <- reshape2::melt(cors, na.rm = T)
 
@@ -726,7 +729,7 @@ solar como de la temperatura como ya se había descrito anteriormente.
 
 ```{r, results='hide', warning=F}
 plot(Indianashputm$geometry, main = "Puntos ubicados en el mapa de Indiana",
-     axes = T)
+     axes = T, xaxt = "n", yaxt = "n")
 points(spatial.points, col = "red", pch = 20, cex = 2)
 ```
 
@@ -735,6 +738,22 @@ Es importante saber donde se encuentran estas unidades ya que el kriging es un
 método de interpolación exacto, por lo que el valor de las variables de 
 interés tendrá el mismo valor de predicción que observado y esto es un
 aspecto a tener en cuenta a la hora de hacer conclusiones.
+
+## Puntos de predicción
+
+Adicional a lo enunciado anteriormente, se presenta para información del lector,
+aquellas ubicaciones geográficas sobre las cuales se realizaron las predicciones
+usando el modelo seleccionado.
+
+```{r}
+grid_points <- st_sfc(st_multipoint(as.matrix(prediction_grid)))
+st_crs(grid_points) <- CRS("+proj=utm +zone=16 ellps=WGS84")
+Indianapoly <- st_transform(Indianashputm$geometry, CRS("+proj=utm +zone=16 ellps=WGS84"),"POLYGON")
+grid_map <- st_intersection(Indianapoly, grid_points)
+plot(grid_map, cex = 0.2, main = "Puntos de predicción", 
+     axes = T, xaxt = "n", yaxt = "n")
+```
+
 
 ## Presentación del mejor modelo
 
