@@ -392,7 +392,7 @@ maps.plot <- function(i, j, plot.var = F) {
 }
 ```
 
-### Irradiación Promedio {.tabset .tabset-fade .tabset-pills}
+### Irradiación promedio {.tabset .tabset-fade .tabset-pills}
 
 #### Modelo gaussiano {.tabset .tabset-fade .tabset-pills}
 
@@ -519,7 +519,8 @@ cors <- reshape2::melt(cors, na.rm = T)
 ggplot(cors, aes(Var1, Var2, fill = value)) +
   geom_tile() +
   geom_text(aes(label = value)) +
-  labs(x = "", y = "", title = "Matriz de correlaciones") +
+  labs(x = "", y = "", title = "Matriz de correlaciones",
+       fill = "Correlación") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = .5)) +
   scale_fill_gradientn(colors = viridis::viridis(20))
