@@ -13,7 +13,7 @@
     width: 100%;
     justify-content: space-around;
     align-items: center;
-    animation: magic 0.5s;
+    animation: magic 1s;
 }
 
 @keyframes magic {
@@ -44,8 +44,8 @@
 }
 
 .slider__img {
-    width: 150px;
-    height: 150px;
+    width: 128px;
+    height: 128px;
     border-radius: 100%;
     object-fit: cover;
     margin: 0 auto;

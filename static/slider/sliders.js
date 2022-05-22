@@ -11,7 +11,6 @@
     setInterval(() => changePosition(1), 5000);
     currentInner.addEventListener("mouseenter", () => {
         out = false;
-        console.log(out);
     });
     currentInner.addEventListener("mouseleave", () => {
         out = true;

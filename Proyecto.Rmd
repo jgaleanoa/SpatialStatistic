@@ -490,12 +490,6 @@ maps.plot(3, 1, T)
 maps.plot(3, 1)
 ```
 
-##### Desviación 
-
-```{r, results='hide'}
-maps.plot(3, 1, T)
-```
-
 Se puede observar que entre todos los modelos de kriging ordinario,
 el que mejor desempeño presenta es aquel donde se asume una estructura
 de covarianza gaussiana para predecir la temperatura promedio.
@@ -528,6 +522,13 @@ ggplot(cors, aes(Var1, Var2, fill = value)) +
   theme_minimal() +
   theme(plot.title = element_text(hjust = .5)) +
   scale_fill_gradientn(colors = viridis::viridis(20))
+```
+
+
+##### Desviación 
+
+```{r, results='hide'}
+maps.plot(3, 1, T)
 ```
 
 
